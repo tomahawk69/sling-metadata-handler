@@ -20,6 +20,7 @@ import javax.servlet.Servlet;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.Collection;
 
@@ -27,7 +28,7 @@ import java.util.Collection;
  * Created by yurov on 28.06.2017.
  */
 @Component(
-        service = { Servlet.class },
+        service = {Servlet.class},
         property = {
                 //ServletResolverConstants.SLING_SERVLET_PATHS + "=/metadata",
                 ServletResolverConstants.SLING_SERVLET_RESOURCE_TYPES + "=" + FacadeService.RESOURCE_TYPE,
@@ -36,11 +37,6 @@ import java.util.Collection;
                 ServletResolverConstants.SLING_SERVLET_METHODS + "=DELETE",
         }
 )
-//@SlingServlet(
-//        paths = {"/metadata"},
-//        resourceTypes = FacadeService.RESOURCE_TYPE,
-//        methods = {"GET", "POST", "DELETE", "PUT"}
-//)
 public class FacadeService extends SlingAllMethodsServlet {
 
     static final String RESOURCE_TYPE = "company/components/services/metadataService";
@@ -87,9 +83,15 @@ public class FacadeService extends SlingAllMethodsServlet {
         if (pathInfo.length != 3) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Expecting a request DELETE /metadata[/<typeName>]");
         } else {
-            try {
-                processor.delete(pathInfo[2]);
-            } catch (NoSuchNodeTypeException ex){
+            try (PrintWriter printWriter = response.getWriter()) {
+                final String typeNameToDelete = pathInfo[2];
+                processor.delete(typeNameToDelete);
+                JSONWriter writer = new JSONWriter(printWriter);
+                writer.array();
+                writer.value(typeNameToDelete);
+                writer.endArray();
+                writer.flush();
+            } catch (NoSuchNodeTypeException ex) {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND, ex.getMessage());
             } catch (RepositoryException ex) {
                 response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ex.getMessage());
@@ -98,16 +100,16 @@ public class FacadeService extends SlingAllMethodsServlet {
     }
 
     private void doPostCnd(SlingHttpServletRequest request, SlingHttpServletResponse response) throws IOException {
-        try {
-            NodeType[] result = processor.addCnd(request.getInputStream());
-            try (PrintWriter printWriter = response.getWriter()) {
-                JSONWriter writer = new JSONWriter(printWriter);
-                writer.array();
-                for (NodeType nodeType : result) {
-                    writer.value(nodeType.toString());
-                }
-                writer.endArray();
+        try (InputStream requestInputStream = request.getInputStream();
+             PrintWriter printWriter = response.getWriter()) {
+            NodeType[] result = processor.addCnd(requestInputStream);
+            JSONWriter writer = new JSONWriter(printWriter);
+            writer.array();
+            for (NodeType nodeType : result) {
+                writer.value(nodeType.toString());
             }
+            writer.endArray();
+            writer.flush();
         } catch (ParseException e) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         } catch (IOException | RepositoryException e) {
@@ -132,7 +134,7 @@ public class FacadeService extends SlingAllMethodsServlet {
     }
 
     private void proceedGet(SlingHttpServletRequest request, SlingHttpServletResponse response, String[] pathInfo) throws IOException {
-        try  {
+        try {
             String param = pathInfo[2];
             NodeType result = processor.get(param);
             try (PrintWriter out = response.getWriter()) {
@@ -142,7 +144,6 @@ public class FacadeService extends SlingAllMethodsServlet {
                 final JSONWriter writer = new JSONWriter(out);
                 writeNodeTypeToJson(result, writer);
             }
-            //out.write(result.toString());
         } catch (NoSuchNodeTypeException e) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, e.getMessage());
         } catch (Exception e) {
