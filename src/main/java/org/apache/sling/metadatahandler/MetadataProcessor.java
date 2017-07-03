@@ -20,4 +20,6 @@ public interface MetadataProcessor {
     NodeType[] addCnd(InputStream inputStream) throws RepositoryException, IOException, ParseException;
 
     void delete(final String typeName) throws RepositoryException;
+
+    void add(InputStream inputStream) throws RepositoryException, IOException, ParseException;
 }

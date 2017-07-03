@@ -5,6 +5,10 @@ REST entries:
   and put a CND into the body
 - DELETE http://localhost:8080/metadata/<name of the type>
 
+How to add required dependencies
+- mvn sling:install-file -Dsling.file=gson-2.8.1.jar
+  add a gson lib to Sling 
+
 How to whitelist the module in sling:
  - go to OSGI configuration (http://localhost:8080/system/console/configMgr)
  - found the Apache Sling Whitelist Fragment

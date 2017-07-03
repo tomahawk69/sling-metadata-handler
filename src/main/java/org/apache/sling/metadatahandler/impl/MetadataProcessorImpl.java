@@ -1,8 +1,15 @@
 package org.apache.sling.metadatahandler.impl;
 
+import com.google.gson.*;
+import org.apache.commons.io.IOUtils;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
+import org.apache.jackrabbit.commons.cnd.CndImporter;
+import org.apache.jackrabbit.commons.cnd.ParseException;
+import org.apache.sling.jcr.api.SlingRepository;
+import org.apache.sling.metadatahandler.MetadataProcessor;
+import org.apache.sling.metadatahandler.entities.NodeTypeWrapper;
 
 import javax.jcr.NamespaceRegistry;
 import javax.jcr.RepositoryException;
@@ -10,11 +17,6 @@ import javax.jcr.Session;
 import javax.jcr.nodetype.NodeType;
 import javax.jcr.nodetype.NodeTypeIterator;
 import javax.jcr.nodetype.NodeTypeManager;
-import org.apache.jackrabbit.commons.cnd.CndImporter;
-import org.apache.jackrabbit.commons.cnd.ParseException;
-import org.apache.sling.jcr.api.SlingRepository;
-import org.apache.sling.metadatahandler.MetadataProcessor;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -66,6 +68,60 @@ public class MetadataProcessorImpl implements MetadataProcessor {
     public void delete(String typeName) throws RepositoryException {
         final NodeTypeManager manager = getNodeTypeManager();
         manager.unregisterNodeType(typeName);
+    }
+
+    @Override
+    public void add(InputStream inputStream) throws RepositoryException, IOException, ParseException {
+        try (InputStreamReader reader = new InputStreamReader(inputStream)) {
+            final String jsonString = IOUtils.toString(reader);
+
+            JsonElement element = new JsonParser().parse(jsonString);
+            if (!element.isJsonObject()) {
+                throw new IllegalArgumentException("Required json object");
+            }
+            JsonObject root = element.getAsJsonObject();
+            if (!root.has("nodetypes")) {
+                throw new IllegalArgumentException("Array nodetypes is required");
+            }
+            if (root.has("namespaces")) {
+                registerNameSpaces(root.get("namespaces"));
+                // register namespaces
+            }
+            registerNodeTypes(root.get("nodetypes"));
+        }
+    }
+
+    private void registerNodeTypes(JsonElement nodetypes) {
+        if (!nodetypes.isJsonArray()) {
+            throw new IllegalArgumentException("Node types should be placed in a array");
+        }
+        JsonArray array = nodetypes.getAsJsonArray();
+        Gson gson = new Gson();
+
+        for (JsonElement item : array) {
+            NodeTypeWrapper wrapper = gson.fromJson(item, NodeTypeWrapper.class);
+            if (wrapper == null) {
+                throw new IllegalArgumentException("Couldn't parse node type");
+            }
+        }
+    }
+
+    /**
+     * Register all the passed namespaces; existed are overwritten
+     *
+     * @param namespaces
+     * @throws RepositoryException
+     */
+    private void registerNameSpaces(JsonElement namespaces) throws RepositoryException {
+        if (!namespaces.isJsonObject()) {
+            throw new IllegalArgumentException("Namespaces should be placed in object as a map");
+        }
+        final JsonObject object = namespaces.getAsJsonObject();
+        final NamespaceRegistry ns = getNamespaceRegistry();
+        for (String key : object.keySet()) {
+            final String value = object.get(key).getAsString();
+            ns.registerNamespace(key, value);
+        }
     }
 
     private NamespaceRegistry getNamespaceRegistry() throws javax.jcr.RepositoryException {
