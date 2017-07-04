@@ -1,16 +1,12 @@
 package org.apache.sling.metadatahandler.utils;
 
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.collections4.Transformer;
-import org.apache.sling.metadatahandler.entities.ChildWrapper;
+import org.apache.sling.metadatahandler.entities.NodeDefinitionWrapper;
 import org.apache.sling.metadatahandler.entities.NodeTypeWrapper;
 import org.apache.sling.metadatahandler.entities.PropertyWrapper;
 
-import javax.jcr.nodetype.NodeDefinition;
-import javax.jcr.nodetype.NodeType;
-import javax.jcr.nodetype.PropertyDefinition;
+import javax.jcr.RepositoryException;
+import javax.jcr.nodetype.*;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -18,12 +14,13 @@ import java.util.List;
  */
 public class NodeTypeWrapperUtils {
 
-    public static NodeTypeWrapper nodeTypeToWrapper (final NodeType nodeType) {
+    public static NodeTypeWrapper nodeTypeToWrapper(final NodeType nodeType) {
         NodeTypeWrapper result = new NodeTypeWrapper();
         result.setName(nodeType.getName());
         result.setMixin(nodeType.isMixin());
+        result.setAbstract(nodeType.isAbstract());
         result.setDeclaredSupertypes(nodeType.getDeclaredSupertypeNames());
-        //
+
         if (nodeType.getDeclaredPropertyDefinitions().length > 0) {
             List<PropertyWrapper> propertyWrappers = new ArrayList<>();
             for (PropertyDefinition propertyDefinition : nodeType.getDeclaredPropertyDefinitions()) {
@@ -32,13 +29,45 @@ public class NodeTypeWrapperUtils {
             result.setProperties(propertyWrappers.toArray(new PropertyWrapper[propertyWrappers.size()]));
         }
         if (nodeType.getChildNodeDefinitions().length > 0) {
-            List<ChildWrapper> childrenDefinitions = new ArrayList<>();
+            List<NodeDefinitionWrapper> childrenDefinitions = new ArrayList<>();
             for (NodeDefinition nodeDefinition : nodeType.getChildNodeDefinitions()) {
-                childrenDefinitions.add(ChildWrapperUtils.nodeDefinitionToChildWrapper(nodeDefinition));
+                childrenDefinitions.add(NodeDefinitionWrapperUtils.nodeDefinitionToChildWrapper(nodeDefinition));
             }
-            result.setChildren(childrenDefinitions.toArray(new ChildWrapper[childrenDefinitions.size()]));
+            result.setNodeDefinitions(childrenDefinitions.toArray(new NodeDefinitionWrapper[childrenDefinitions.size()]));
         }
-        return result;
 
+        return result;
     }
+
+    @SuppressWarnings("unchecked")
+    public static NodeTypeTemplate wrapperToNodeTypeTemplate(final NodeTypeWrapper wrapper,
+                                                             final NodeTypeManager manager) throws RepositoryException {
+        final NodeTypeTemplate result = manager.createNodeTypeTemplate();
+
+        result.setName(wrapper.getName());
+        result.setMixin(wrapper.isMixin());
+        result.setAbstract(wrapper.isAbstract());
+
+        result.setDeclaredSuperTypeNames(wrapper.getDeclaredSupertypes());
+
+        final PropertyWrapper[] properties = wrapper.getProperties();
+        if (properties != null) {
+            for (final PropertyWrapper propertyWrapper : properties) {
+                final PropertyDefinitionTemplate property = PropertyWrapperUtils.wrapperToPropertyDefinition(propertyWrapper, manager);
+                // unchecked
+                result.getPropertyDefinitionTemplates().add(property);
+            }
+        }
+
+        // children properties????
+        final NodeDefinitionWrapper[] nodeDefinitions = wrapper.getNodeDefinitions();
+        if (nodeDefinitions != null) {
+            for (final NodeDefinitionWrapper childWrapper : nodeDefinitions) {
+                result.getNodeDefinitionTemplates().add(NodeDefinitionWrapperUtils.wrapperToNodeDefinition(childWrapper, manager));
+            }
+        }
+
+        return result;
+    }
+
 }

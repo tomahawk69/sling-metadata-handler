@@ -1,14 +1,17 @@
 package org.apache.sling.metadatahandler.entities;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
 /**
  * Created by yurov on 03.07.2017.
  */
-public class ChildWrapper implements Serializable {
+public class NodeDefinitionWrapper implements Serializable {
+
     private String name;
     private String primaryType;
     private String requiredType;
+    private String[] requiredTypes;
     private boolean isMandatory;
     private boolean isAutoCreated;
     private boolean isProtected;
@@ -70,12 +73,21 @@ public class ChildWrapper implements Serializable {
         this.allowsSameTypeSiblings = allowsSameTypeSiblings;
     }
 
+    public String[] getRequiredTypes() {
+        return requiredTypes;
+    }
+
+    public void setRequiredTypes(String[] requiredTypes) {
+        this.requiredTypes = requiredTypes;
+    }
+
     @Override
     public String toString() {
-        return "ChildWrapper{" +
+        return "NodeDefinitionWrapper{" +
                 "name='" + name + '\'' +
                 ", primaryType='" + primaryType + '\'' +
                 ", requiredType='" + requiredType + '\'' +
+                ", requiredTypes=" + Arrays.toString(requiredTypes) +
                 ", isMandatory=" + isMandatory +
                 ", isAutoCreated=" + isAutoCreated +
                 ", isProtected=" + isProtected +

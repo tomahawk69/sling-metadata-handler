@@ -10,9 +10,10 @@ public class NodeTypeWrapper implements Serializable {
 
     private String name;
     private boolean isMixin;
+    private boolean isAbstract;
     private String[] declaredSupertypes;
     private PropertyWrapper[] properties;
-    private ChildWrapper[] children;
+    private NodeDefinitionWrapper[] nodeDefinitions;
 
     public NodeTypeWrapper() {
     }
@@ -49,12 +50,20 @@ public class NodeTypeWrapper implements Serializable {
         this.properties = properties;
     }
 
-    public ChildWrapper[] getChildren() {
-        return children;
+    public NodeDefinitionWrapper[] getNodeDefinitions() {
+        return nodeDefinitions;
     }
 
-    public void setChildren(ChildWrapper[] children) {
-        this.children = children;
+    public void setNodeDefinitions(NodeDefinitionWrapper[] nodeDefinitions) {
+        this.nodeDefinitions = nodeDefinitions;
+    }
+
+    public boolean isAbstract() {
+        return isAbstract;
+    }
+
+    public void setAbstract(boolean anAbstract) {
+        isAbstract = anAbstract;
     }
 
     @Override
@@ -62,9 +71,10 @@ public class NodeTypeWrapper implements Serializable {
         return "NodeTypeWrapper{" +
                 "name='" + name + '\'' +
                 ", isMixin=" + isMixin +
+                ", isAbstract=" + isAbstract +
                 ", declaredSupertypes=" + Arrays.toString(declaredSupertypes) +
                 ", properties=" + Arrays.toString(properties) +
-                ", children=" + Arrays.toString(children) +
+                ", nodeDefinitions=" + Arrays.toString(nodeDefinitions) +
                 '}';
     }
 }

@@ -10,6 +10,7 @@ import org.apache.jackrabbit.commons.cnd.ParseException;
 import org.apache.sling.jcr.api.SlingRepository;
 import org.apache.sling.metadatahandler.MetadataProcessor;
 import org.apache.sling.metadatahandler.entities.NodeTypeWrapper;
+import org.apache.sling.metadatahandler.utils.NodeTypeWrapperUtils;
 
 import javax.jcr.NamespaceRegistry;
 import javax.jcr.RepositoryException;
@@ -17,6 +18,7 @@ import javax.jcr.Session;
 import javax.jcr.nodetype.NodeType;
 import javax.jcr.nodetype.NodeTypeIterator;
 import javax.jcr.nodetype.NodeTypeManager;
+import javax.jcr.nodetype.NodeTypeTemplate;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -37,14 +39,14 @@ public class MetadataProcessorImpl implements MetadataProcessor {
 
     @Override
     public NodeType get(String typeName) throws RepositoryException {
-        final NodeTypeManager manager = getNodeTypeManager();
+        final NodeTypeManager manager = getNodeTypeManager(getAdminSession());
         return manager.getNodeType(typeName);
     }
 
     @Override
     public Collection<NodeType> getList() {
         try {
-            final NodeTypeManager manager = getNodeTypeManager();
+            final NodeTypeManager manager = getNodeTypeManager(getAdminSession());
             final NodeTypeIterator nodeTypeIterator = manager.getAllNodeTypes();
             final List<NodeType> result = new ArrayList<>();
             while (nodeTypeIterator.hasNext()) {
@@ -66,7 +68,7 @@ public class MetadataProcessorImpl implements MetadataProcessor {
 
     @Override
     public void delete(String typeName) throws RepositoryException {
-        final NodeTypeManager manager = getNodeTypeManager();
+        final NodeTypeManager manager = getNodeTypeManager(getAdminSession());
         manager.unregisterNodeType(typeName);
     }
 
@@ -91,18 +93,32 @@ public class MetadataProcessorImpl implements MetadataProcessor {
         }
     }
 
-    private void registerNodeTypes(JsonElement nodetypes) {
+    private void registerNodeTypes(JsonElement nodetypes) throws RepositoryException {
         if (!nodetypes.isJsonArray()) {
             throw new IllegalArgumentException("Node types should be placed in a array");
         }
         JsonArray array = nodetypes.getAsJsonArray();
         Gson gson = new Gson();
 
-        for (JsonElement item : array) {
-            NodeTypeWrapper wrapper = gson.fromJson(item, NodeTypeWrapper.class);
-            if (wrapper == null) {
-                throw new IllegalArgumentException("Couldn't parse node type");
+        final Session session = getAdminSession();
+        final NodeTypeManager manager = getNodeTypeManager(session);
+        try {
+            for (JsonElement item : array) {
+                final NodeTypeWrapper wrapper = gson.fromJson(item, NodeTypeWrapper.class);
+                if (wrapper == null) {
+                    throw new IllegalArgumentException("Couldn't parse node type");
+                }
+                final NodeTypeTemplate nodeTypeTemplate = NodeTypeWrapperUtils.wrapperToNodeTypeTemplate(wrapper, manager);
+                manager.registerNodeType(nodeTypeTemplate, true);
             }
+            if (session.hasPendingChanges()) {
+                session.save();
+            }
+        } catch (Exception ex) {
+            if (session.hasPendingChanges()) {
+                session.refresh(false);
+            }
+            throw ex;
         }
     }
 
@@ -134,8 +150,7 @@ public class MetadataProcessorImpl implements MetadataProcessor {
         return repository.loginAdministrative(null);
     }
 
-    private NodeTypeManager getNodeTypeManager() throws javax.jcr.RepositoryException {
-        Session session = getAdminSession();
+    private NodeTypeManager getNodeTypeManager(final Session session) throws javax.jcr.RepositoryException {
         NodeTypeManager manager = session.getWorkspace().getNodeTypeManager();
         return manager;
     }

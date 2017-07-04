@@ -2,7 +2,7 @@ package org.apache.sling.metadatahandler;
 
 import com.google.gson.Gson;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.felix.utils.json.JSONWriter;
+import org.apache.http.entity.ContentType;
 import org.apache.jackrabbit.commons.cnd.ParseException;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
@@ -14,14 +14,10 @@ import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.http.entity.ContentType;
 
-import javax.jcr.PropertyType;
 import javax.jcr.RepositoryException;
 import javax.jcr.nodetype.NoSuchNodeTypeException;
-import javax.jcr.nodetype.NodeDefinition;
 import javax.jcr.nodetype.NodeType;
-import javax.jcr.nodetype.PropertyDefinition;
 import javax.servlet.Servlet;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletResponse;
@@ -41,6 +37,7 @@ import java.util.Collection;
                 ServletResolverConstants.SLING_SERVLET_METHODS + "=GET",
                 ServletResolverConstants.SLING_SERVLET_METHODS + "=POST",
                 ServletResolverConstants.SLING_SERVLET_METHODS + "=DELETE",
+                ServletResolverConstants.SLING_SERVLET_METHODS + "=PUT",
         }
 )
 public class FacadeService extends SlingAllMethodsServlet {
@@ -101,6 +98,11 @@ public class FacadeService extends SlingAllMethodsServlet {
                 response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ex.getMessage());
             }
         }
+    }
+
+    @Override
+    protected void doPut(SlingHttpServletRequest request, SlingHttpServletResponse response) throws ServletException, IOException {
+        response.sendError(HttpServletResponse.SC_NOT_IMPLEMENTED, "Service doesn't support PUT method");
     }
 
     private void doPostCnd(SlingHttpServletRequest request, SlingHttpServletResponse response) throws IOException {
@@ -177,7 +179,7 @@ public class FacadeService extends SlingAllMethodsServlet {
     }
 
     private String nodeTypeToJson(NodeType nodeType) throws IOException {
-        NodeTypeWrapper nodeTypeWrapper = NodeTypeWrapperUtils.nodeTypeToWrapper(nodeType);
+        final NodeTypeWrapper nodeTypeWrapper = NodeTypeWrapperUtils.nodeTypeToWrapper(nodeType);
         return new Gson().toJson(nodeTypeWrapper);
     }
 

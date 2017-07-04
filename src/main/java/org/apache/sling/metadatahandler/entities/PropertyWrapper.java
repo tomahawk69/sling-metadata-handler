@@ -1,5 +1,7 @@
 package org.apache.sling.metadatahandler.entities;
 
+import javax.jcr.nodetype.PropertyDefinition;
+import javax.jcr.nodetype.PropertyDefinitionTemplate;
 import java.io.Serializable;
 
 /**
@@ -75,4 +77,5 @@ public class PropertyWrapper implements Serializable {
                 ", isProtected=" + isProtected +
                 '}';
     }
+
 }
