@@ -1,4 +1,4 @@
-REST entries:
+## REST entries:
 - GET http://localhost:8080/metadata
 - GET http://localhost:8080/metadata/<name of the type>
 - POST http://localhost:8080/metadata 
@@ -65,28 +65,38 @@ Example NodeType JSON:
     ]
 }
 
-How to add required dependencies
+## How to add required dependencies
 - mvn sling:install-file -Dsling.file=gson-2.8.1.jar
   add a gson lib to Sling 
 Added dependencies can be found at http://localhost:8080/system/console/bundles 
 
-How to whitelist the module in sling:
+## How to whitelist the module in sling:
  - go to OSGI configuration (http://localhost:8080/system/console/configMgr)
- - found the Apache Sling Whitelist Fragment
+ - found Apache Sling Whitelist Fragment
  - press a + button ("create new factory configuration")
  - add the values:
   name = metadata-handler
   Whitelisted BSNs = org.apache.sling.metadata-handler
 - press "Save" button  
   
-How to deploy module into running Sling
+## How to create a service user for the module:
+ - go to System Users (http://localhost:8080/bin/users.html/home/users/system/)
+ - create a system user ng-admin
+ - go to OSGI configuration (http://localhost:8080/system/console/configMgr)
+ - found Apache Sling Service User Mapper Service
+ - press an Edit button
+ - add the values:
+  org.apache.sling.metadata-handler=ng-admin
+- press "Save" button  
+  
+## How to deploy module into running Sling
 - create a maven run configuration:
  clean package sling:install
 - pom.xml contains a hardcoded information about Sling address:
  <obr>http://localhost:8080</obr>
 - run configuration (Sling also should be started previously)
 
-How to debug an application:
+## How to debug an application:
 - run a Sling with parameters
  -Xmx384M -agentlib:jdwp=transport=dt_socket,address=<port number>,server=y,suspend=n
  the port number e.g. 30303 
@@ -94,9 +104,10 @@ How to debug an application:
 - Replace the port number with one from the first step (e.g. 30303)
 - run it; works like a charm  
 
-TODO:
+## TODO:
+- custom error handling
+- Think about authorization
 - DELETE multiple types
 - ACL for the module
-- rewrite MetadataProcessorImpl.getAdminSession 
 - pathInfo as standalone class (or existed solution)
  

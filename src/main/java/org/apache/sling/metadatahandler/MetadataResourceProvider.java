@@ -11,6 +11,7 @@ import org.osgi.service.component.annotations.Component;
 import java.util.Iterator;
 
 import static org.apache.sling.metadatahandler.FacadeService.RESOURCE_TYPE;
+import static org.apache.sling.metadatahandler.FacadeService.ROOT_PATH;
 
 /**
  * Created by yurov on 28.06.2017.
@@ -19,7 +20,7 @@ import static org.apache.sling.metadatahandler.FacadeService.RESOURCE_TYPE;
  * /metadata/<any type>
  */
 @Component(service = {ResourceProvider.class}, immediate = true,
-        property = {ResourceProvider.PROPERTY_ROOT + "=/metadata"}
+        property = {ResourceProvider.PROPERTY_ROOT + "=" + ROOT_PATH}
 )
 public class MetadataResourceProvider extends ResourceProvider {
 
@@ -45,7 +46,7 @@ public class MetadataResourceProvider extends ResourceProvider {
 
             @Override
             public ResourceResolver getResourceResolver() {
-                return null;//resourceResolver;
+                return null;
             }
 
             @Override

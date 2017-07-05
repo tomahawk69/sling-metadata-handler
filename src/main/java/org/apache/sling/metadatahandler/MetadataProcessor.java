@@ -1,6 +1,7 @@
 package org.apache.sling.metadatahandler;
 
 import org.apache.jackrabbit.commons.cnd.ParseException;
+import org.apache.sling.api.resource.LoginException;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.nodetype.NodeType;
@@ -13,13 +14,13 @@ import java.util.Collection;
  */
 public interface MetadataProcessor {
 
-    NodeType get(final String typeName) throws RepositoryException;
+    NodeType get(final String typeName) throws RepositoryException, LoginException;
 
-    Collection<NodeType> getList();
+    Collection<NodeType> getList() throws LoginException, RepositoryException;
 
-    NodeType[] addCnd(InputStream inputStream) throws RepositoryException, IOException, ParseException;
+    NodeType[] addCnd(InputStream inputStream) throws RepositoryException, IOException, ParseException, LoginException;
 
-    void delete(final String typeName) throws RepositoryException;
+    void delete(final String typeName) throws RepositoryException, LoginException;
 
-    void add(InputStream inputStream) throws RepositoryException, IOException, ParseException;
+    void add(InputStream inputStream) throws RepositoryException, IOException, ParseException, LoginException;
 }

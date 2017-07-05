@@ -2,14 +2,20 @@ package org.apache.sling.metadatahandler;
 
 import com.google.gson.Gson;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.felix.scr.annotations.Property;
 import org.apache.http.entity.ContentType;
 import org.apache.jackrabbit.commons.cnd.ParseException;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
+import org.apache.sling.api.resource.LoginException;
+import org.apache.sling.api.servlets.HttpConstants;
 import org.apache.sling.api.servlets.ServletResolverConstants;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
+import org.apache.sling.auth.core.AuthConstants;
 import org.apache.sling.metadatahandler.entities.NodeTypeWrapper;
+
 import org.apache.sling.metadatahandler.utils.NodeTypeWrapperUtils;
+import org.apache.sling.serviceusermapping.ServiceUserMapped;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.slf4j.Logger;
@@ -27,6 +33,8 @@ import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Collection;
 
+import static org.apache.sling.metadatahandler.FacadeService.ROOT_PATH;
+
 /**
  * Created by yurov on 28.06.2017.
  */
@@ -34,20 +42,25 @@ import java.util.Collection;
         service = {Servlet.class},
         property = {
                 ServletResolverConstants.SLING_SERVLET_RESOURCE_TYPES + "=" + FacadeService.RESOURCE_TYPE,
-                ServletResolverConstants.SLING_SERVLET_METHODS + "=GET",
-                ServletResolverConstants.SLING_SERVLET_METHODS + "=POST",
-                ServletResolverConstants.SLING_SERVLET_METHODS + "=DELETE",
-                ServletResolverConstants.SLING_SERVLET_METHODS + "=PUT",
+                ServletResolverConstants.SLING_SERVLET_METHODS + "=" + HttpConstants.METHOD_GET,
+                ServletResolverConstants.SLING_SERVLET_METHODS + "=" + HttpConstants.METHOD_POST,
+                ServletResolverConstants.SLING_SERVLET_METHODS + "=" + HttpConstants.METHOD_DELETE,
+                ServletResolverConstants.SLING_SERVLET_METHODS + "=" + HttpConstants.METHOD_PUT,
+                AuthConstants.AUTH_REQUIREMENTS + "=" + ROOT_PATH
+       },
+        reference = {
+                @Reference(name = "ng-admin", service = ServiceUserMapped.class)
         }
 )
 public class FacadeService extends SlingAllMethodsServlet {
 
     static final String RESOURCE_TYPE = "company/components/services/metadataService";
     private static final String PATH_DELIMITER = "/";
-
+    public static final String ROOT_PATH = "/metadata";
 
     @Reference
     private MetadataProcessor processor;
+
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FacadeService.class);
 
@@ -96,16 +109,18 @@ public class FacadeService extends SlingAllMethodsServlet {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND, ex.getMessage());
             } catch (RepositoryException ex) {
                 response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ex.getMessage());
+            } catch (LoginException ex) {
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, ex.getMessage());
             }
         }
     }
 
     @Override
-    protected void doPut(SlingHttpServletRequest request, SlingHttpServletResponse response) throws ServletException, IOException {
+    protected void doPut(final SlingHttpServletRequest request, final SlingHttpServletResponse response) throws ServletException, IOException {
         response.sendError(HttpServletResponse.SC_NOT_IMPLEMENTED, "Service doesn't support PUT method");
     }
 
-    private void doPostCnd(SlingHttpServletRequest request, SlingHttpServletResponse response) throws IOException {
+    private void doPostCnd(final SlingHttpServletRequest request, final SlingHttpServletResponse response) throws IOException {
         try (InputStream requestInputStream = request.getInputStream();
              PrintWriter printWriter = response.getWriter()) {
             NodeType[] added = processor.addCnd(requestInputStream);
@@ -128,12 +143,14 @@ public class FacadeService extends SlingAllMethodsServlet {
             printWriter.write(Arrays.toString(result));
         } catch (ParseException e) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+        } catch (LoginException ex) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, ex.getMessage());
         } catch (IOException | RepositoryException e) {
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
 
-    private void doPostJson(SlingHttpServletRequest request, SlingHttpServletResponse response) throws IOException {
+    private void doPostJson(final SlingHttpServletRequest request, final SlingHttpServletResponse response) throws IOException {
         try (InputStream requestInputStream = request.getInputStream()) {
             processor.add(requestInputStream);
             setResponseOk(response, ContentType.APPLICATION_JSON.toString());
@@ -143,23 +160,27 @@ public class FacadeService extends SlingAllMethodsServlet {
 
         } catch (RepositoryException e) {
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        } catch (LoginException ex) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, ex.getMessage());
         } catch (ParseException e) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         }
     }
 
-    private void proceedGetList(SlingHttpServletResponse response) throws IOException {
+    private void proceedGetList(final SlingHttpServletResponse response) throws IOException {
         try (PrintWriter out = response.getWriter()) {
             final Collection<NodeType> result = processor.getList();
             setResponseOk(response, ContentType.APPLICATION_JSON.toString());
             // just write an array of strings
             out.write(result.toString());
-        } catch (Exception e) {
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        } catch (final LoginException ex) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, ex.getMessage());
+        } catch (final Exception ex) {
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, ex.getMessage());
         }
     }
 
-    private void proceedGet(SlingHttpServletResponse response, String[] pathInfo) throws IOException {
+    private void proceedGet(final SlingHttpServletResponse response, final String[] pathInfo) throws IOException {
         try {
             String param = pathInfo[2];
             NodeType result = processor.get(param);
@@ -167,23 +188,25 @@ public class FacadeService extends SlingAllMethodsServlet {
                 setResponseOk(response, ContentType.APPLICATION_JSON.toString());
                 out.write(nodeTypeToJson(result));
             }
-        } catch (NoSuchNodeTypeException e) {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND, e.getMessage());
-        } catch (Exception e) {
-            LOGGER.error("Smth wrong with proceedGet", e);
+        } catch (LoginException ex) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, ex.getMessage());
+        } catch (NoSuchNodeTypeException ex) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, ex.getMessage());
+        } catch (Exception ex) {
+            LOGGER.error("Smth wrong with proceedGet", ex);
         }
     }
 
-    private String[] splitPath(SlingHttpServletRequest request) {
+    private String[] splitPath(final SlingHttpServletRequest request) {
         return request.getPathInfo().split(PATH_DELIMITER);
     }
 
-    private String nodeTypeToJson(NodeType nodeType) throws IOException {
+    private String nodeTypeToJson(final NodeType nodeType) throws IOException {
         final NodeTypeWrapper nodeTypeWrapper = NodeTypeWrapperUtils.nodeTypeToWrapper(nodeType);
         return new Gson().toJson(nodeTypeWrapper);
     }
 
-    private void setResponseOk(SlingHttpServletResponse response, final String contentType) {
+    private void setResponseOk(final SlingHttpServletResponse response, final String contentType) {
         response.setStatus(HttpServletResponse.SC_OK);
         response.setCharacterEncoding("utf-8");
         if (contentType != null) {
