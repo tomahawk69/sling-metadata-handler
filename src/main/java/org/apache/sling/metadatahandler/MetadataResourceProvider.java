@@ -3,6 +3,8 @@ package org.apache.sling.metadatahandler;
 import org.apache.sling.api.resource.AbstractResource;
 import org.apache.sling.api.resource.ResourceMetadata;
 import org.apache.sling.api.resource.ResourceResolver;
+import org.apache.sling.api.resource.ResourceResolverFactory;
+import org.apache.sling.api.wrappers.ResourceResolverWrapper;
 import org.apache.sling.spi.resource.provider.ResolveContext;
 import org.apache.sling.spi.resource.provider.ResourceContext;
 import org.apache.sling.spi.resource.provider.ResourceProvider;
@@ -25,7 +27,7 @@ import static org.apache.sling.metadatahandler.FacadeService.ROOT_PATH;
 public class MetadataResourceProvider extends ResourceProvider {
 
     @Override
-    public org.apache.sling.api.resource.Resource getResource(ResolveContext ctx, final String path, ResourceContext resourceContext, org.apache.sling.api.resource.Resource parent) {
+    public org.apache.sling.api.resource.Resource getResource(final ResolveContext ctx, final String path, final ResourceContext resourceContext, org.apache.sling.api.resource.Resource parent) {
         AbstractResource abstractResource;
         abstractResource = new AbstractResource() {
 
@@ -46,7 +48,7 @@ public class MetadataResourceProvider extends ResourceProvider {
 
             @Override
             public ResourceResolver getResourceResolver() {
-                return null;
+                return ctx.getResourceResolver();
             }
 
             @Override

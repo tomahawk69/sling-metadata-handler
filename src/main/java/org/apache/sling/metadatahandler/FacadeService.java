@@ -159,7 +159,11 @@ public class FacadeService extends SlingAllMethodsServlet {
             }
 
         } catch (RepositoryException e) {
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+            if (e.getCause() == null) {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+            } else {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, String.format("%s (%s)", e.getMessage(), e.getCause().getMessage()));
+            }
         } catch (LoginException ex) {
             response.sendError(HttpServletResponse.SC_FORBIDDEN, ex.getMessage());
         } catch (ParseException e) {

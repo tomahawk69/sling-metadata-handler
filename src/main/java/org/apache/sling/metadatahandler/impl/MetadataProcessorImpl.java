@@ -25,10 +25,7 @@ import javax.jcr.nodetype.NodeTypeTemplate;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /**
  * Created by yurov on 28.06.2017.
@@ -45,33 +42,40 @@ public class MetadataProcessorImpl implements MetadataProcessor {
 
     @Override
     public NodeType get(String typeName) throws RepositoryException, LoginException {
-        final NodeTypeManager manager = getNodeTypeManager(getSession());
-        return manager.getNodeType(typeName);
+        try (ResourceResolver resourceResolver = getResourceResolver()) {
+            final NodeTypeManager manager = getNodeTypeManager(getSession(resourceResolver));
+            return manager.getNodeType(typeName);
+        }
     }
 
     @Override
     public Collection<NodeType> getList() throws LoginException, RepositoryException {
-        final NodeTypeManager manager = getNodeTypeManager(getSession());
-        final NodeTypeIterator nodeTypeIterator = manager.getAllNodeTypes();
-        final List<NodeType> result = new ArrayList<>();
-        while (nodeTypeIterator.hasNext()) {
-            result.add(nodeTypeIterator.nextNodeType());
+        try (ResourceResolver resourceResolver = getResourceResolver()) {
+            final NodeTypeManager manager = getNodeTypeManager(getSession(resourceResolver));
+            final NodeTypeIterator nodeTypeIterator = manager.getAllNodeTypes();
+            final List<NodeType> result = new ArrayList<>();
+            while (nodeTypeIterator.hasNext()) {
+                result.add(nodeTypeIterator.nextNodeType());
+            }
+            return result;
         }
-        return result;
     }
 
     @Override
     public NodeType[] addCnd(InputStream inputStream) throws RepositoryException, IOException, ParseException, LoginException {
-        try (InputStreamReader reader = new InputStreamReader(inputStream)) {
-            final NodeType[] nodeTypes = CndImporter.registerNodeTypes(reader, getSession());
+        try (InputStreamReader reader = new InputStreamReader(inputStream);
+             ResourceResolver resourceResolver = getResourceResolver()) {
+            final NodeType[] nodeTypes = CndImporter.registerNodeTypes(reader, getSession(resourceResolver));
             return nodeTypes;
         }
     }
 
     @Override
     public void delete(String typeName) throws RepositoryException, LoginException {
-        final NodeTypeManager manager = getNodeTypeManager(getSession());
-        manager.unregisterNodeType(typeName);
+        try (ResourceResolver resourceResolver = getResourceResolver()) {
+            final NodeTypeManager manager = getNodeTypeManager(getSession(resourceResolver));
+            manager.unregisterNodeType(typeName);
+        }
     }
 
     @Override
@@ -102,25 +106,31 @@ public class MetadataProcessorImpl implements MetadataProcessor {
         JsonArray array = nodetypes.getAsJsonArray();
         Gson gson = new Gson();
 
-        final Session session = getSession();
-        final NodeTypeManager manager = getNodeTypeManager(session);
-        try {
-            for (JsonElement item : array) {
-                final NodeTypeWrapper wrapper = gson.fromJson(item, NodeTypeWrapper.class);
-                if (wrapper == null) {
-                    throw new IllegalArgumentException("Couldn't parse node type");
+
+        try (ResourceResolver resourceResolver = getResourceResolver()) {
+
+            final Session session = getSession(resourceResolver);
+            final NodeTypeManager manager = getNodeTypeManager(session);
+            try {
+                for (JsonElement item : array) {
+                    final NodeTypeWrapper wrapper = gson.fromJson(item, NodeTypeWrapper.class);
+                    if (wrapper == null) {
+                        throw new IllegalArgumentException("Couldn't parse node type");
+                    }
+                    final NodeTypeTemplate nodeTypeTemplate = NodeTypeWrapperUtils.wrapperToNodeTypeTemplate(wrapper, manager);
+                    manager.registerNodeType(nodeTypeTemplate, true);
                 }
-                final NodeTypeTemplate nodeTypeTemplate = NodeTypeWrapperUtils.wrapperToNodeTypeTemplate(wrapper, manager);
-                manager.registerNodeType(nodeTypeTemplate, true);
+                if (session.isLive() && session.hasPendingChanges()) {
+                    session.save();
+                }
+            } catch (Exception ex) {
+                if (session.isLive() && session.hasPendingChanges()) {
+                    session.refresh(false);
+                }
+                // ex.printStackTrace();
+                // caused exception
+                throw ex;
             }
-            if (session.hasPendingChanges()) {
-                session.save();
-            }
-        } catch (Exception ex) {
-            if (session.hasPendingChanges()) {
-                session.refresh(false);
-            }
-            throw ex;
         }
     }
 
@@ -143,13 +153,20 @@ public class MetadataProcessorImpl implements MetadataProcessor {
     }
 
     private NamespaceRegistry getNamespaceRegistry() throws javax.jcr.RepositoryException, LoginException {
-        Session session = getSession();
-        return session.getWorkspace().getNamespaceRegistry();
+        try (ResourceResolver resourceResolver = getResourceResolver()) {
+            Session session = getSession(resourceResolver);
+            //Session session = repository.loginAdministrative(null);
+            return session.getWorkspace().getNamespaceRegistry();
+        }
     }
 
-    private Session getSession() throws javax.jcr.RepositoryException, LoginException {
-        final ResourceResolver resolver = resourceResolverFactory.getServiceResourceResolver(Collections.EMPTY_MAP);
+    private Session getSession(final ResourceResolver resolver) throws javax.jcr.RepositoryException, LoginException {
         return resolver.adaptTo(Session.class);
+    }
+
+    private ResourceResolver getResourceResolver() throws LoginException {
+        final Map<String, Object> authInfo = Collections.emptyMap();
+        return resourceResolverFactory.getServiceResourceResolver(authInfo);
     }
 
     private NodeTypeManager getNodeTypeManager(final Session session) throws javax.jcr.RepositoryException {
