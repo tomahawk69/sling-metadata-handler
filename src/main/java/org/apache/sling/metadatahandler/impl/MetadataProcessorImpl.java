@@ -161,11 +161,19 @@ public class MetadataProcessorImpl implements MetadataProcessor {
     }
 
     private Session getSession(final ResourceResolver resolver) throws javax.jcr.RepositoryException, LoginException {
-        return resolver.adaptTo(Session.class);
+        // TODO security workaround
+        return getAdministrativeSession();
+        //return resolver.adaptTo(Session.class);
+    }
+
+    @Deprecated
+    private Session getAdministrativeSession() throws javax.jcr.RepositoryException, LoginException {
+        return repository.loginAdministrative(null);
     }
 
     private ResourceResolver getResourceResolver() throws LoginException {
-        final Map<String, Object> authInfo = Collections.emptyMap();
+        final Map<String, Object> authInfo = new HashMap<>();
+        authInfo.put(ResourceResolverFactory.USER, "admin");
         return resourceResolverFactory.getServiceResourceResolver(authInfo);
     }
 

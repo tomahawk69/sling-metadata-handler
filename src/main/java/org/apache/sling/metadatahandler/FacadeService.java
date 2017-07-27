@@ -128,14 +128,14 @@ public class FacadeService extends SlingAllMethodsServlet {
 
             int i = 100;
             // execute while result is not empty to make sure the all VALID elements added
-            while (added.length > 0) {
+            do  {
                 added = processor.addCnd(requestInputStream);
                 ArrayUtils.addAll(result, added);
                 if (i-- < 0) {
                     // just in case
                     break;
                 }
-            }
+            } while (added.length > 0);
 
             setResponseOk(response, ContentType.APPLICATION_JSON.toString());
 
